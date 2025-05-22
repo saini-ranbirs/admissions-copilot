@@ -47,7 +47,7 @@ with st.form("form"):
     crl = st.number_input("Enter your JEE Main Rank", min_value=1)
     category = st.selectbox("Category", ["OPEN", "OPEN (Pwd)", "OBC-NCL", "OBC-NCL (PwD)", "SC", "SC (PwD)", "ST", "ST (PwD)", "EWS", "EWS (PwD)"])
     #state = st.text_input("Domicile State")
-    round_selected = st.selectbox("Select JoSAA Round", [1, 2, 3, 4, 5], index=0)
+    round_selected = st.selectbox("Select JoSAA Round", [1, 2, 3, 4, 5], index=4)
     selected_institute = st.selectbox("Filter by Institute", ["All", "IITs", "NITs"] + institutes)
     branch_query = st.text_input("Filter by Branch (partial match, example: cs, ece, electrical, civil etc.)", "")
     submit = st.form_submit_button("Find Colleges")
@@ -83,7 +83,7 @@ if submit:
         matches = matches[matches['Branch'].str.lower().str.contains(branch_query)]
 
     # Drop duplicates based on key columns
-    matches_unique = matches.drop_duplicates(subset=['Institute', 'Branch', 'Category'])
+    matches_unique = matches.drop_duplicates(subset=['Institute', 'Branch', 'Category', 'Round'])
 
     if matches_unique.empty:
         st.warning("⚠️ Sorry, no colleges found for your profile.")
@@ -91,7 +91,7 @@ if submit:
         st.success(f"🎯 Found {len(matches_unique)} possible options!")
 
         # Select only relevant columns
-        display_data = matches_unique[['Closing Rank', 'Institute', 'Branch', 'Category', 'Opening Rank']].sort_values(by='Closing Rank')
+        display_data = matches_unique[['Closing Rank', 'Institute', 'Branch', 'Category', 'Round']].sort_values(by='Closing Rank')
 
         # Reset index and convert to records for clean display
         display_data = display_data.reset_index(drop=True)
@@ -209,11 +209,11 @@ if st.session_state.get("run_query", False) and st.session_state.get("last_quest
             #st.text(inst_filter)
             matches = matches[matches["Institute"].str.contains(inst_filter, case=False, na=False)]
 
-        matches_unique = matches.drop_duplicates(subset=['Institute', 'Branch', 'Category'])
+        matches_unique = matches.drop_duplicates(subset=['Institute', 'Branch', 'Category', 'Round'])
 
         if not matches_unique.empty:
             st.success(f"🎓 Found {len(matches_unique)} matching options")
-            display_data = matches_unique[['Closing Rank', 'Institute', 'Branch', 'Category', 'Opening Rank']].sort_values(by='Closing Rank')
+            display_data = matches_unique[['Closing Rank', 'Institute', 'Branch', 'Category', 'Round']].sort_values(by='Closing Rank')
             display_data = display_data.reset_index(drop=True)
             st.dataframe(display_data.style.hide(axis='index'), use_container_width=True)
         else:
