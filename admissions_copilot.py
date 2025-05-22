@@ -67,9 +67,12 @@ if submit:
         # Replace if found in map
         if selected_institute_normalized in institute_map:
             selected_institute = institute_map[selected_institute_normalized]
+        else:
+            selected_institute = selected_institute_normalized
         st.text("Expanded Institute Name:")
         st.text(selected_institute)
-        matches = matches[matches['Institute'].str.lower().str.contains(selected_institute)]
+        matches = matches[matches['Institute'].str.lower().str.contains(selected_institute.lower(), regex=False)]
+
 
     # Apply optional branch filter
     if branch_query.strip() != "":
@@ -81,7 +84,7 @@ if submit:
             branch_query = branch_query_normalized
         #st.text("Expanded Branch Name:")
         #st.text(branch_filter)
-        matches = matches[matches['Branch'].str.lower().str.contains(branch_query)]
+        matches = matches[matches['Branch'].str.lower().str.contains(branch_query.lower(), regex=False)]
 
     # Drop duplicates based on key columns
     matches_unique = matches.drop_duplicates(subset=['Institute', 'Branch', 'Category'])
