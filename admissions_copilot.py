@@ -7,8 +7,10 @@ import re
 
 
 # Setup Gemini
-os.environ["GOOGLE_API_KEY"] = "AIzaSyBNeXg8GO5YLbIiHm5-0uYAEux9aPSBJL0"
-genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
+
+# Use secret from .streamlit/secrets.toml
+import google.generativeai as genai
+genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
 cutoffs = pd.read_csv("cutoffs2024.csv")
 
