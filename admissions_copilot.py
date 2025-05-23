@@ -34,11 +34,13 @@ components.html(
 import google.generativeai as genai
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
-cutoffs = pd.read_csv("cutoffs2024.csv")
+cutoffs = pd.read_csv("cutoffs2023-2024.csv")
 
 institutes = sorted(cutoffs['Institute'].dropna().unique())
 branches = sorted(cutoffs['Branch'].dropna().unique())
 genders = sorted(cutoffs['Gender'].dropna().unique())
+years = sorted(cutoffs['Year'].dropna().unique())
+rounds = sorted(cutoffs['Round'].dropna().unique())
 
 # Map common abbreviations to full branch keyword
 branch_map = {
@@ -68,7 +70,7 @@ st.subheader("🎓 Engineering Admissions Copilot - JoSSA 2025")
 st.markdown(
     """
     <p style="font-size:16px; color:gray; text-align:left;">
-    This tool is an open-source initiative to help organize JoSAA 2024 cutoff data for easier exploration.  
+    This tool is an open-source initiative to help organize JoSAA 2023, 2024 cutoff data for easier exploration.  
     All data is used as-is and may contain errors. Use this tool at your own risk. The author is not liable for any inaccuracies or decisions based on this data.
     </p>
     """,
@@ -81,7 +83,8 @@ with st.form("form"):
     category = st.selectbox("Category", ["OPEN", "OPEN (Pwd)", "OBC-NCL", "OBC-NCL (PwD)", "SC", "SC (PwD)", "ST", "ST (PwD)", "EWS", "EWS (PwD)"])
     gender = st.selectbox("Gender", genders, index=1)
     #state = st.text_input("Domicile State")
-    round_selected = st.selectbox("Select JoSAA Round", ["ANY", 1, 2, 3, 4, 5], index=1)
+    year = st.selectbox("Year", years, index=len(years)-1)
+    round_selected = st.selectbox("Select JoSAA Round", ["ANY"] + rounds, index=1)
     selected_institute = st.selectbox("Filter by Institute", ["All", "IITs", "NITs"] + institutes)
     branch_query = st.text_input("Filter by Branch (comma-separated) (for example: cs, ece, electrical, civil)", "")
     submit = st.form_submit_button("Find Colleges")
@@ -91,7 +94,8 @@ if submit:
     matches = cutoffs[
         (cutoffs['Closing Rank'] >= crl) &
         (cutoffs['Category'].str.lower() == category.lower()) &
-        (cutoffs['Gender'].str.lower() == gender.lower())
+        (cutoffs['Gender'].str.lower() == gender.lower()) &
+        (cutoffs['Year'] == year)
     ]
     if round_selected != "ANY":
         matches = matches[matches['Round'] == round_selected]
@@ -128,7 +132,7 @@ if submit:
     if matches_unique.empty:
         st.warning("⚠️ Sorry, no colleges found for your profile.")
     else:
-        st.success(f"🎯 Found {len(matches_unique)} possible options based on 2024 cutoffs!")
+        st.success(f"🎯 Found {len(matches_unique)} possible options based on cutoffs in " + str(year))
 
         # Select only relevant columns
         display_data = matches_unique[['Closing Rank', 'Institute', 'Branch', 'Round']].sort_values(by='Closing Rank')
@@ -152,7 +156,7 @@ sample_questions = [
     "Show me IITs accepting 8000 rank for Computer Science.",
     "What are my options in Round 3 with rank 23000 for SC category?",
     "Can I get Mechanical in NIT with 12000 rank?",
-    "What branches are available in IITs above 6000 CRL?"
+    "What branches were available in IITs above 6000 CRL in year 2023?"
 ]
 
 # UI section for hybrid input
@@ -200,6 +204,7 @@ if st.session_state.get("run_query", False) and st.session_state.get("last_quest
         - Category (OPEN, OBC, SC, etc.)
         - Branch (text)
         - Institute (text)
+        - Year (numeric)
 
         Respond ONLY with raw JSON (no markdown/code blocks).
 
@@ -218,11 +223,17 @@ if st.session_state.get("run_query", False) and st.session_state.get("last_quest
         extracted = {k.lower(): v for k, v in extracted.items()}
         matches = cutoffs.copy()
 
+        year = 2024;
+
         if "closing rank" in extracted and isinstance(extracted["closing rank"], int):
             matches = matches[matches["Closing Rank"] >= extracted["closing rank"]]
 
         if "round" in extracted and isinstance(extracted["round"], int):
             matches = matches[matches["Round"] == extracted["round"]]
+
+        if "year" in extracted and isinstance(extracted["year"], int):
+            year = extracted["year"]
+        matches = matches[matches["Year"] == year]
 
         if "category" in extracted and isinstance(extracted["category"], str):
             cat_filter = extracted["category"]
@@ -262,7 +273,7 @@ if st.session_state.get("run_query", False) and st.session_state.get("last_quest
         matches_unique = matches.drop_duplicates(subset=['Institute', 'Branch', 'Category'])
 
         if not matches_unique.empty:
-            st.success(f"🎓 Found {len(matches_unique)} matching options based on 2024 cutoffs!")
+            st.success(f"🎓 Found {len(matches_unique)} matching options based on cutoffs in " + str(year))
             display_data = matches_unique[['Closing Rank', 'Institute', 'Branch', 'Category', 'Round']].sort_values(by='Closing Rank')
             display_data = display_data.reset_index(drop=True)
             st.dataframe(display_data.style.hide(axis='index'), use_container_width=True)
@@ -286,7 +297,7 @@ st.markdown("---")  # Horizontal line separator
 st.markdown(
     """
     <p style="font-size:12px; color:gray; text-align:left;">
-    &copy; 2025 Ritesh Jain. This tool is an open-source initiative to help organize JoSAA 2024 cutoff data for easier exploration.  
+    &copy; 2025 Ritesh Jain. This tool is an open-source initiative to help organize JoSAA 2023, 2024 cutoff data for easier exploration.  
     All data is used as-is and may contain errors. Use this tool at your own risk. The author is not liable for any inaccuracies or decisions based on this data.
     </p>
     """,
