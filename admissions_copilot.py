@@ -5,6 +5,11 @@ import os
 import json
 import re
 
+st.set_page_config(
+    page_title="Engineering Admissions Copilot - JoSSA 2025",
+    page_icon="🎓",
+    layout="wide"
+)
 
 # Setup Gemini
 
