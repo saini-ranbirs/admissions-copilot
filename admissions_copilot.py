@@ -40,8 +40,18 @@ institute_map = {
 }
 
 # Streamlit UI
-st.header("🎓 Engineering Admissions Copilot")
-st.subheader("JoSSA 2025 predictions based on 2024 cutoff data")
+st.subheader("🎓 Engineering Admissions Copilot - JoSSA 2025")
+#st.subheader("JoSSA 2025 predictions based on 2024 cutoff data")
+
+st.markdown(
+    """
+    <p style="font-size:16px; color:gray; text-align:center;">
+    This tool is an open-source initiative to help organize JoSAA 2024 cutoff data for easier exploration.  
+    All data is used as-is and may contain errors. Use this tool at your own risk. The author is not liable for any inaccuracies or decisions based on this data.
+    </p>
+    """,
+    unsafe_allow_html=True,
+)
 
 with st.form("form"):
     st.subheader("Student Profile")
@@ -51,7 +61,7 @@ with st.form("form"):
     #state = st.text_input("Domicile State")
     round_selected = st.selectbox("Select JoSAA Round", ["ANY", 1, 2, 3, 4, 5], index=1)
     selected_institute = st.selectbox("Filter by Institute", ["All", "IITs", "NITs"] + institutes)
-    branch_query = st.text_input("Filter by Branch (partial match, example: cs, ece, electrical, civil etc.)", "")
+    branch_query = st.text_input("Filter by Branch (comma-separated) (for example: cs, ece, electrical, civil)", "")
     submit = st.form_submit_button("Find Colleges")
 
 if submit:
@@ -79,15 +89,16 @@ if submit:
 
     # Apply optional branch filter
     if branch_query.strip() != "":
-        branch_query_normalized = branch_query.strip().lower()
-        # Replace if found in map
-        if branch_query_normalized in branch_map:
-            branch_query = branch_map[branch_query_normalized]
-        else:
-            branch_query = branch_query_normalized
-        #st.text("Expanded Branch Name:")
-        #st.text(branch_filter)
-        matches = matches[matches['Branch'].str.lower().str.contains(branch_query.lower(), regex=False)]
+        # Normalize and split input
+        branch_keywords = [kw.strip().lower() for kw in branch_query.split(",") if kw.strip()]
+
+        branch_keywords = [branch_map.get(kw, kw) for kw in branch_keywords]
+        
+        # Apply filter: match if any keyword appears in the branch name
+        pattern = '|'.join(branch_keywords)
+        #st.text("Branch Pattern:")
+        #st.text(pattern)
+        matches = matches[matches['Branch'].str.lower().str.contains(pattern)]
 
     # Drop duplicates based on key columns
     matches_unique = matches.drop_duplicates(subset=['Institute', 'Branch', 'Category'])
@@ -95,7 +106,7 @@ if submit:
     if matches_unique.empty:
         st.warning("⚠️ Sorry, no colleges found for your profile.")
     else:
-        st.success(f"🎯 Found {len(matches_unique)} possible options!")
+        st.success(f"🎯 Found {len(matches_unique)} possible options based on 2024 cutoffs!")
 
         # Select only relevant columns
         display_data = matches_unique[['Closing Rank', 'Institute', 'Branch', 'Round']].sort_values(by='Closing Rank')
@@ -123,7 +134,17 @@ sample_questions = [
 ]
 
 # UI section for hybrid input
-st.markdown("## 🤖 Ask Admissions Copilot")
+st.subheader("🤖 Ask Admissions Copilot")
+
+st.markdown(
+    """
+    <p style="font-size:16px; color:gray; text-align:center;">
+    This section is an attempt to provide the same information using GenAI by understanding an English query.
+    The system is able to understand simple queries with one branch, one college type and a rank but may fail at complex ones. Give it a try!
+    </p>
+    """,
+    unsafe_allow_html=True,
+)
 
 selected_example = st.selectbox("💡 Choose a sample question:", [""] + sample_questions)
 custom_question = st.text_area("Or type your own question below:")
@@ -219,7 +240,7 @@ if st.session_state.get("run_query", False) and st.session_state.get("last_quest
         matches_unique = matches.drop_duplicates(subset=['Institute', 'Branch', 'Category'])
 
         if not matches_unique.empty:
-            st.success(f"🎓 Found {len(matches_unique)} matching options")
+            st.success(f"🎓 Found {len(matches_unique)} matching options based on 2024 cutoffs!")
             display_data = matches_unique[['Closing Rank', 'Institute', 'Branch', 'Category', 'Round']].sort_values(by='Closing Rank')
             display_data = display_data.reset_index(drop=True)
             st.dataframe(display_data.style.hide(axis='index'), use_container_width=True)
@@ -243,9 +264,8 @@ st.markdown("---")  # Horizontal line separator
 st.markdown(
     """
     <p style="font-size:12px; color:gray; text-align:center;">
-    &copy; 2025 Ritesh Jain. This website is a simple attempt to organize JoSAA 2024 cutoff data for easier consumption.<br>
-    I am not responsible for any mistakes or inaccuracies in the data. Use this website at your own risk.<br>
-    I disclaim any liability for outcomes resulting from the use of this site.
+    &copy; 2025 Ritesh Jain. This tool is an open-source initiative to help organize JoSAA 2024 cutoff data for easier exploration.  
+    All data is used as-is and may contain errors. Use this tool at your own risk. The author is not liable for any inaccuracies or decisions based on this data.
     </p>
     """,
     unsafe_allow_html=True,
