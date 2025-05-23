@@ -16,6 +16,7 @@ cutoffs = pd.read_csv("cutoffs2024.csv")
 
 institutes = sorted(cutoffs['Institute'].dropna().unique())
 branches = sorted(cutoffs['Branch'].dropna().unique())
+genders = sorted(cutoffs['Gender'].dropna().unique())
 
 # Map common abbreviations to full branch keyword
 branch_map = {
@@ -23,7 +24,7 @@ branch_map = {
     "cse": "computer",
     "computer science": "computer",
     "computers": "computer",
-    "ece": "electronics",
+    "ece": "electronics and communication",
     "ee": "electrical",
     # Add more if needed
 }
@@ -46,8 +47,9 @@ with st.form("form"):
     st.subheader("Student Profile")
     crl = st.number_input("Enter your JEE Main Rank", min_value=1)
     category = st.selectbox("Category", ["OPEN", "OPEN (Pwd)", "OBC-NCL", "OBC-NCL (PwD)", "SC", "SC (PwD)", "ST", "ST (PwD)", "EWS", "EWS (PwD)"])
+    gender = st.selectbox("Gender", genders, index=1)
     #state = st.text_input("Domicile State")
-    round_selected = st.selectbox("Select JoSAA Round", ["ANY", 1, 2, 3, 4, 5], index=0)
+    round_selected = st.selectbox("Select JoSAA Round", ["ANY", 1, 2, 3, 4, 5], index=1)
     selected_institute = st.selectbox("Filter by Institute", ["All", "IITs", "NITs"] + institutes)
     branch_query = st.text_input("Filter by Branch (partial match, example: cs, ece, electrical, civil etc.)", "")
     submit = st.form_submit_button("Find Colleges")
@@ -56,7 +58,8 @@ if submit:
     # Filter based on CRL, category
     matches = cutoffs[
         (cutoffs['Closing Rank'] >= crl) &
-        (cutoffs['Category'].str.lower() == category.lower())
+        (cutoffs['Category'].str.lower() == category.lower()) &
+        (cutoffs['Gender'].str.lower() == gender.lower())
     ]
     if round_selected != "ANY":
         matches = matches[matches['Round'] == round_selected]
@@ -69,8 +72,8 @@ if submit:
             selected_institute = institute_map[selected_institute_normalized]
         else:
             selected_institute = selected_institute_normalized
-        st.text("Expanded Institute Name:")
-        st.text(selected_institute)
+        #st.text("Expanded Institute Name:")
+        #st.text(selected_institute)
         matches = matches[matches['Institute'].str.lower().str.contains(selected_institute.lower(), regex=False)]
 
 
@@ -95,7 +98,7 @@ if submit:
         st.success(f"🎯 Found {len(matches_unique)} possible options!")
 
         # Select only relevant columns
-        display_data = matches_unique[['Closing Rank', 'Institute', 'Branch', 'Category', 'Round']].sort_values(by='Closing Rank')
+        display_data = matches_unique[['Closing Rank', 'Institute', 'Branch', 'Round']].sort_values(by='Closing Rank')
 
         # Reset index and convert to records for clean display
         display_data = display_data.reset_index(drop=True)
