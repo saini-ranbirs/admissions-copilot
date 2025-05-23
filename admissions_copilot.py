@@ -50,7 +50,7 @@ st.subheader("🎓 Engineering Admissions Copilot - JoSSA 2025")
 
 st.markdown(
     """
-    <p style="font-size:16px; color:gray; text-align:center;">
+    <p style="font-size:16px; color:gray; text-align:left;">
     This tool is an open-source initiative to help organize JoSAA 2024 cutoff data for easier exploration.  
     All data is used as-is and may contain errors. Use this tool at your own risk. The author is not liable for any inaccuracies or decisions based on this data.
     </p>
@@ -143,7 +143,7 @@ st.subheader("🤖 Ask Admissions Copilot")
 
 st.markdown(
     """
-    <p style="font-size:16px; color:gray; text-align:center;">
+    <p style="font-size:16px; color:gray; text-align:left;">
     This section is an attempt to provide the same information using GenAI by understanding an English query.
     The system is able to understand simple queries with one branch, one college type and a rank but may fail at complex ones. Give it a try!
     </p>
@@ -268,7 +268,7 @@ st.markdown("---")  # Horizontal line separator
 
 st.markdown(
     """
-    <p style="font-size:12px; color:gray; text-align:center;">
+    <p style="font-size:12px; color:gray; text-align:left;">
     &copy; 2025 Ritesh Jain. This tool is an open-source initiative to help organize JoSAA 2024 cutoff data for easier exploration.  
     All data is used as-is and may contain errors. Use this tool at your own risk. The author is not liable for any inaccuracies or decisions based on this data.
     </p>
