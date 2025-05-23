@@ -4,11 +4,28 @@ import google.generativeai as genai
 import os
 import json
 import re
+import streamlit.components.v1 as components
+
+
 
 st.set_page_config(
     page_title="Engineering Admissions Copilot - JoSSA 2025",
     page_icon="🎓",
     layout="wide"
+)
+
+components.html(
+    """
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-39DYHCZPD3"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-39DYHCZPD3');
+    </script>
+    """,
+    height=0,
 )
 
 # Setup Gemini
