@@ -56,10 +56,13 @@ branch_map = {
 institute_map = {
     "iit": "indian institute of technology",
     "iits": "indian institute of technology",
+    "all iits": "indian institute of technology",
     "nit": "national institute of technology",
     "nits": "national institute of technology",
+    "all nits": "national institute of technology",
     "iiit": "indian institute of information technology",
     "iiits": "indian institute of information technology",
+    "all iiits": "indian institute of information technology",
     # Add more if needed
 }
 
@@ -77,15 +80,31 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# Radio button outside the form
+exam_type = st.radio("Which exam rank are you using?", ["JEE Mains", "JEE Advanced"])
+
 with st.form("form"):
-    st.subheader("Student Profile")
-    crl = st.number_input("Enter your JEE Main Rank", min_value=1)
+    crl = st.number_input("Enter your rank from " + exam_type, min_value=1)
     category = st.selectbox("Category", ["OPEN", "OPEN (Pwd)", "OBC-NCL", "OBC-NCL (PwD)", "SC", "SC (PwD)", "ST", "ST (PwD)", "EWS", "EWS (PwD)"])
     gender = st.selectbox("Gender", genders, index=1)
     #state = st.text_input("Domicile State")
     year = st.selectbox("Year", years, index=len(years)-1)
     round_selected = st.selectbox("Select JoSAA Round", ["ANY"] + rounds, index=1)
-    selected_institute = st.selectbox("Filter by Institute", ["All", "IITs", "NITs"] + institutes)
+
+    # Modify the institute options based on exam_type
+    if exam_type == "JEE Advanced":
+        allowed_institutes = sorted([i for i in institutes if i.startswith("Indian Institute of Technology")])
+        selected_institute = st.selectbox("Filter by Institute", ["All IITs"] + allowed_institutes)
+        #selected_institute = st.selectbox("Institute (Only IITs allowed for JEE Advanced)", sorted([i for i in institutes if "Indian Institute of Technology" in i]), index=0, disabled=True)
+    else:
+        allowed_institutes = sorted([i for i in institutes if not i.startswith("Indian Institute of Technology")])
+        selected_institute = st.selectbox("Filter by Institute", ["All except IITs", "All NITs"] + allowed_institutes)
+
+    
+    #selected_institute = st.selectbox("Filter by Institute", ["All", "IITs", "NITs"] + institutes)
+
+
+
     branch_query = st.text_input("Filter by Branch (comma-separated) (for example: cs, ece, electrical, civil)", "")
     submit = st.form_submit_button("Find Colleges")
 
@@ -100,18 +119,22 @@ if submit:
     if round_selected != "ANY":
         matches = matches[matches['Round'] == round_selected]
 
+
+
     # Apply optional institute filter
-    if selected_institute != "All":
-        selected_institute_normalized = selected_institute.strip().lower()
+    selected_institute_normalized = selected_institute.strip().lower()
+
+    if selected_institute_normalized == "all except iits":
+        # Exclude institutes that contain "indian institute of technology" (IITs)
+        matches = matches[~matches['Institute'].str.lower().str.contains("indian institute of technology", regex=False)]
+    else:
         # Replace if found in map
         if selected_institute_normalized in institute_map:
             selected_institute = institute_map[selected_institute_normalized]
         else:
             selected_institute = selected_institute_normalized
-        #st.text("Expanded Institute Name:")
-        #st.text(selected_institute)
-        matches = matches[matches['Institute'].str.lower().str.contains(selected_institute.lower(), regex=False)]
 
+        matches = matches[matches['Institute'].str.lower().str.contains(selected_institute.lower(), regex=False)]
 
     # Apply optional branch filter
     if branch_query.strip() != "":
