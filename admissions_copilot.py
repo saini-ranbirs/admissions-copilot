@@ -50,6 +50,7 @@ branch_map = {
     "computers": "computer",
     "ece": "electronics and communication",
     "ee": "electrical",
+    "arch": "architecture",
     # Add more if needed
 }
 
@@ -83,8 +84,14 @@ st.markdown(
 # Radio button outside the form
 exam_type = st.radio("Which exam rank are you using?", ["JEE Mains", "JEE Advanced"])
 
+# Outside the form: handle dynamic interactivity
+crl = st.number_input("Enter your rank from " + exam_type, min_value=1, value=1000)
+use_range = st.checkbox("Search within ± range?")
+if use_range:
+    rank_range = st.number_input("Enter range value", min_value=1, max_value=1000, value=200)
+
 with st.form("form"):
-    crl = st.number_input("Enter your rank from " + exam_type, min_value=1)
+    
     category = st.selectbox("Category", ["OPEN", "OPEN (Pwd)", "OBC-NCL", "OBC-NCL (PwD)", "SC", "SC (PwD)", "ST", "ST (PwD)", "EWS", "EWS (PwD)"])
     gender = st.selectbox("Gender", genders, index=1)
     #state = st.text_input("Domicile State")
@@ -109,17 +116,26 @@ with st.form("form"):
     submit = st.form_submit_button("Find Colleges")
 
 if submit:
-    # Filter based on CRL, category
-    matches = cutoffs[
-        (cutoffs['Closing Rank'] >= crl) &
-        (cutoffs['Category'].str.lower() == category.lower()) &
-        (cutoffs['Gender'].str.lower() == gender.lower()) &
-        (cutoffs['Year'] == year)
-    ]
+    # Filter based on CRL, category etc
+    if use_range:
+        lower_bound = crl - rank_range
+        upper_bound = crl + rank_range
+        matches = cutoffs[
+            (cutoffs['Closing Rank'] >= lower_bound) &
+            (cutoffs['Closing Rank'] <= upper_bound) &
+            (cutoffs['Category'].str.lower() == category.lower()) &
+            (cutoffs['Gender'].str.lower() == gender.lower()) &
+            (cutoffs['Year'] == year)
+        ]
+    else:
+        matches = cutoffs[
+            (cutoffs['Closing Rank'] >= crl) &
+            (cutoffs['Category'].str.lower() == category.lower()) &
+            (cutoffs['Gender'].str.lower() == gender.lower()) &
+            (cutoffs['Year'] == year)
+        ]
     if round_selected != "ANY":
         matches = matches[matches['Round'] == round_selected]
-
-
 
     # Apply optional institute filter
     selected_institute_normalized = selected_institute.strip().lower()
@@ -141,13 +157,26 @@ if submit:
         # Normalize and split input
         branch_keywords = [kw.strip().lower() for kw in branch_query.split(",") if kw.strip()]
 
+        # Apply branch_map replacements if any
         branch_keywords = [branch_map.get(kw, kw) for kw in branch_keywords]
-        
+
+        # Check if user explicitly asked for architecture or planning
+        include_architecture = any("arch" in kw for kw in branch_keywords)
+        include_planning = any("plan" in kw for kw in branch_keywords)
+
+        # Exclude architecture/planning-related branches unless explicitly included
+        if not include_architecture:
+            matches = matches[~matches['Branch'].str.lower().str.contains("architecture|arch", regex=True)]
+        if not include_planning:
+            matches = matches[~matches['Branch'].str.lower().str.contains("planning|plan", regex=True)]
+
         # Apply filter: match if any keyword appears in the branch name
         pattern = '|'.join(branch_keywords)
-        #st.text("Branch Pattern:")
-        #st.text(pattern)
         matches = matches[matches['Branch'].str.lower().str.contains(pattern)]
+    else:
+        # No branch filter, exclude both architecture and planning
+        matches = matches[~matches['Branch'].str.lower().str.contains("architecture|arch|planning|plan", regex=True)]
+
 
     # Drop duplicates based on key columns
     matches_unique = matches.drop_duplicates(subset=['Institute', 'Branch', 'Category'])
