@@ -5,36 +5,25 @@ import os
 import json
 import re
 import streamlit.components.v1 as components
+#import streamlit_analytics
 
-
-
+# --- Configuration ---
 st.set_page_config(
-    page_title="Engineering Admissions Copilot - JoSSA 2025",
+    page_title="Engineering Admissions Copilot - JoSAA 2025",
     page_icon="🎓",
     layout="wide"
 )
 
-components.html(
-    """
-    <!-- Global site tag (gtag.js) - Google Analytics -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-39DYHCZPD3"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-39DYHCZPD3');
-    </script>
-    """,
-    height=0,
-)
+# --- Google Analytics using streamlit-analytics ---
+#with streamlit_analytics.track():
+   
+# --- Data Loading and Initialization ---
+@st.cache_data
+def load_data():
+    cutoffs = pd.read_csv("cutoffs2023-2024.csv")
+    return cutoffs
 
-# Setup Gemini
-
-# Use secret from .streamlit/secrets.toml
-import google.generativeai as genai
-genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-
-cutoffs = pd.read_csv("cutoffs2023-2024.csv")
+cutoffs = load_data()
 
 institutes = sorted(cutoffs['Institute'].dropna().unique())
 branches = sorted(cutoffs['Branch'].dropna().unique())
@@ -42,7 +31,7 @@ genders = sorted(cutoffs['Gender'].dropna().unique())
 years = sorted(cutoffs['Year'].dropna().unique())
 rounds = sorted(cutoffs['Round'].dropna().unique())
 
-# Map common abbreviations to full branch keyword
+# --- Mapping Dictionaries ---
 branch_map = {
     "cs": "computer",
     "cse": "computer",
@@ -67,151 +56,175 @@ institute_map = {
     # Add more if needed
 }
 
-# Streamlit UI
-st.subheader("🎓 Engineering Admissions Copilot - JoSSA 2025")
-#st.subheader("JoSSA 2025 predictions based on 2024 cutoff data")
+state_nit_map = {
+    "Karnataka": "National Institute of Technology Karnataka, Surathkal",
+    "Telangana": "National Institute of Technology, Warangal",
+    "Kerala": "National Institute of Technology Calicut",
+    "Jharkhand": "National Institute of Technology, Jamshedpur",
+    "Tamil Nadu": "National Institute of Technology, Tiruchirappalli",
+    "Uttar Pradesh": "Motilal Nehru National Institute of Technology Allahabad",
+    "West Bengal": "Indian Institute of Engineering Science and Technology, Shibpur",
+    "Odisha": "National Institute of Technology, Rourkela",
+    "West Bengal": "National Institute of Technology Durgapur",
+    "Rajasthan": "Malaviya National Institute of Technology Jaipur",
+    "Meghalaya": "National Institute of Technology Meghalaya",
+    "Maharashtra": "Visvesvaraya National Institute of Technology, Nagpur",
+    "Chhattisgarh": "National Institute of Technology Raipur",
+    "Andhra Pradesh": "National Institute of Technology, Andhra Pradesh",
+    "Haryana": "National Institute of Technology, Kurukshetra",
+    "Bihar": "National Institute of Technology Patna",
+    "Madhya Pradesh": "Maulana Azad National Institute of Technology Bhopal",
+    "Jammu and Kashmir": "National Institute of Technology, Srinagar",
+    "Himachal Pradesh": "National Institute of Technology Hamirpur",
+    "Chandigarh": "Punjab Engineering College, Chandigarh",
+    "Delhi": "National Institute of Technology Delhi",
+    "Gujarat": "Sardar Vallabhbhai National Institute of Technology, Surat",
+    "Punjab": "Dr. B R Ambedkar National Institute of Technology, Jalandhar",
+    "Assam": "National Institute of Technology, Silchar",
+    "Uttarakhand": "National Institute of Technology, Uttarakhand",
+    "Jharkhand": "Birla Institute of Technology, Mesra, Ranchi",
+    "Tripura": "National Institute of Technology Agartala",
+    "Puducherry": "National Institute of Technology Puducherry",
+    "Goa": "National Institute of Technology Goa",
+    "Jharkhand": "Birla Institute of Technology, Deoghar Off-Campus", # Assuming location
+    "Bihar": "Birla Institute of Technology, Patna Off-Campus", # Assuming location
+    "Assam": "Assam University, Silchar",
+    "Manipur": "National Institute of Technology, Manipur",
+    "Arunachal Pradesh": "National Institute of Technology Arunachal Pradesh",
+    "West Bengal": "Ghani Khan Choudhury Institute of Engineering and Technology, Malda, West Bengal",
+    "Nagaland": "National Institute of Technology Nagaland",
+    "Odisha": "Institute of Chemical Technology, Mumbai: Indian Oil Odisha Campus, Bhubaneswar",
+    "Sikkim": "National Institute of Technology Sikkim",
+    "Mizoram": "National Institute of Technology, Mizoram",
+    "Puducherry": "Puducherry Technological University, Puducherry",
+}
+
+# Create a sorted list of states for the dropdown
+states = sorted(state_nit_map.keys())
+
+# --- Filtering Function ---
+def filter_cutoff_data(df, rank, use_range=False, rank_range=0, category=None, gender=None, year=None, round_selected="ANY", selected_institute="All", branch_query="", state="Select State"):
+    matches = df.copy()
+
+    if use_range:
+        lower_bound = rank - rank_range
+        upper_bound = rank + rank_range
+        matches = matches[(matches['Closing Rank'] >= lower_bound) & (matches['Closing Rank'] <= upper_bound)]
+    else:
+        matches = matches[matches['Closing Rank'] >= rank]
+
+    if category and category != "All":
+        matches = matches[matches['Category'].str.lower() == category.lower()]
+    if gender and gender != "All":
+        matches = matches[matches['Gender'].str.lower() == gender.lower()]
+    if year:
+        matches = matches[matches['Year'] == year]
+    if round_selected != "ANY":
+        matches = matches[matches['Round'] == round_selected]
+
+    selected_institute_normalized = selected_institute.strip().lower()
+    if selected_institute_normalized == "all except iits":
+        matches = matches[~matches['Institute'].str.lower().str.contains("indian institute of technology", regex=False)]
+    elif selected_institute_normalized == "all nits":
+        matches = matches[matches['Institute'].str.lower().str.contains("national institute of technology", regex=False)]
+    elif selected_institute_normalized != "all":
+        if selected_institute_normalized in institute_map:
+            selected_institute = institute_map[selected_institute_normalized]
+        else:
+            selected_institute = selected_institute_normalized
+        matches = matches[matches['Institute'].str.lower().str.contains(selected_institute.lower(), regex=False)]
+
+    if state != "Select State":
+        home_college = state_nit_map.get(state)
+        if home_college:
+            def filter_by_state(row):
+                institute_lower = row['Institute'].lower()
+                if any(college.lower() in institute_lower for college in state_nit_map.values()):
+                    if home_college.lower() in institute_lower:
+                        return row['Quota'] == 'HS'
+                    else:
+                        return row['Quota'] == 'OS'
+                return True
+            matches = matches[matches.apply(filter_by_state, axis=1)]
+        else:
+            st.warning(f"⚠️ College mapping not found for the state: {state}")
+
+    if branch_query.strip() != "":
+        branch_keywords = [kw.strip().lower() for kw in branch_query.split(",") if kw.strip()]
+        branch_keywords = [branch_map.get(kw, kw) for kw in branch_keywords]
+        include_architecture = any("arch" in kw for kw in branch_keywords)
+        include_planning = any("plan" in kw for kw in branch_keywords)
+        if not include_architecture:
+            matches = matches[~matches['Branch'].str.lower().str.contains("architecture|arch", regex=True)]
+        if not include_planning:
+            matches = matches[~matches['Branch'].str.lower().str.contains("planning|plan", regex=True)]
+        pattern = '|'.join(branch_keywords)
+        matches = matches[matches['Branch'].str.lower().str.contains(pattern)]
+    else:
+        matches = matches[~matches['Branch'].str.lower().str.contains("architecture|arch|planning|plan", regex=True)]
+
+    matches_unique = matches.drop_duplicates(subset=['Institute', 'Branch', 'Category'])
+    return matches_unique[['Closing Rank', 'Institute', 'Branch', 'Round']].sort_values(by='Closing Rank').reset_index(drop=True)
+
+# --- Main Streamlit UI ---
+st.subheader("🎓 Engineering Admissions Copilot - JoSAA 2025")
 
 st.markdown(
     """
     <p style="font-size:16px; color:gray; text-align:left;">
-    This tool is an open-source initiative to help organize JoSAA 2023, 2024 cutoff data for easier exploration.  
+    This tool is an open-source initiative to help organize JoSAA 2023, 2024 cutoff data for easier exploration.
     All data is used as-is and may contain errors. Use this tool at your own risk. The author is not liable for any inaccuracies or decisions based on this data.
     </p>
     """,
     unsafe_allow_html=True,
 )
 
-# Radio button outside the form
+# --- Structured Input Form ---
 exam_type = st.radio("Which exam rank are you using?", ["JEE Mains", "JEE Advanced"])
-
-# Outside the form: handle dynamic interactivity
 crl = st.number_input("Enter your rank from " + exam_type, min_value=1, value=1000)
 use_range = st.checkbox("Search within ± range?")
-if use_range:
-    rank_range = st.number_input("Enter range value", min_value=1, max_value=1000, value=200)
+rank_range_input = st.number_input("Enter range value", min_value=1, max_value=1000, value=200) if use_range else 0
 
 with st.form("form"):
-    
-    category = st.selectbox("Category", ["OPEN", "OPEN (Pwd)", "OBC-NCL", "OBC-NCL (PwD)", "SC", "SC (PwD)", "ST", "ST (PwD)", "EWS", "EWS (PwD)"])
-    gender = st.selectbox("Gender", genders, index=1)
-    #state = st.text_input("Domicile State")
-    year = st.selectbox("Year", years, index=len(years)-1)
-    round_selected = st.selectbox("Select JoSAA Round", ["ANY"] + rounds, index=1)
+    category_form = st.selectbox("Category", sorted(cutoffs['Category'].dropna().unique()), index=4)
+    gender_form = st.selectbox("Gender", genders, index=1)
+    state_form = st.selectbox("Domicile State (for NITs and other colleges with Home State quota)", ["Select State"] + states)
+    year_form = st.selectbox("Year", years, index=len(years)-1)
+    round_selected_form = st.selectbox("Select JoSAA Round", ["ANY"] + rounds, index=1)
 
-    # Modify the institute options based on exam_type
     if exam_type == "JEE Advanced":
-        allowed_institutes = sorted([i for i in institutes if i.startswith("Indian Institute of Technology")])
-        selected_institute = st.selectbox("Filter by Institute", ["All IITs"] + allowed_institutes)
-        #selected_institute = st.selectbox("Institute (Only IITs allowed for JEE Advanced)", sorted([i for i in institutes if "Indian Institute of Technology" in i]), index=0, disabled=True)
+        allowed_institutes_form = sorted([i for i in institutes if i.startswith("Indian Institute of Technology")])
+        selected_institute_form = st.selectbox("Filter by Institute", ["All IITs", "All"] + allowed_institutes_form)
     else:
-        allowed_institutes = sorted([i for i in institutes if not i.startswith("Indian Institute of Technology")])
-        selected_institute = st.selectbox("Filter by Institute", ["All except IITs", "All NITs"] + allowed_institutes)
+        allowed_institutes_form = sorted([i for i in institutes if not i.startswith("Indian Institute of Technology")])
+        selected_institute_form = st.selectbox("Filter by Institute", ["All except IITs", "All NITs", "All"] + allowed_institutes_form)
 
-    
-    #selected_institute = st.selectbox("Filter by Institute", ["All", "IITs", "NITs"] + institutes)
+    branch_query_form = st.text_input("Filter by Branch (comma-separated) (for example: cs, ece, electrical, civil)", "")
+    submit_button = st.form_submit_button("Find Colleges")
 
-
-
-    branch_query = st.text_input("Filter by Branch (comma-separated) (for example: cs, ece, electrical, civil)", "")
-    submit = st.form_submit_button("Find Colleges")
-
-if submit:
-    # Filter based on CRL, category etc
-    if use_range:
-        lower_bound = crl - rank_range
-        upper_bound = crl + rank_range
-        matches = cutoffs[
-            (cutoffs['Closing Rank'] >= lower_bound) &
-            (cutoffs['Closing Rank'] <= upper_bound) &
-            (cutoffs['Category'].str.lower() == category.lower()) &
-            (cutoffs['Gender'].str.lower() == gender.lower()) &
-            (cutoffs['Year'] == year)
-        ]
-    else:
-        matches = cutoffs[
-            (cutoffs['Closing Rank'] >= crl) &
-            (cutoffs['Category'].str.lower() == category.lower()) &
-            (cutoffs['Gender'].str.lower() == gender.lower()) &
-            (cutoffs['Year'] == year)
-        ]
-    if round_selected != "ANY":
-        matches = matches[matches['Round'] == round_selected]
-
-    # Apply optional institute filter
-    selected_institute_normalized = selected_institute.strip().lower()
-
-    if selected_institute_normalized == "all except iits":
-        # Exclude institutes that contain "indian institute of technology" (IITs)
-        matches = matches[~matches['Institute'].str.lower().str.contains("indian institute of technology", regex=False)]
-    else:
-        # Replace if found in map
-        if selected_institute_normalized in institute_map:
-            selected_institute = institute_map[selected_institute_normalized]
-        else:
-            selected_institute = selected_institute_normalized
-
-        matches = matches[matches['Institute'].str.lower().str.contains(selected_institute.lower(), regex=False)]
-
-    # Apply optional branch filter
-    if branch_query.strip() != "":
-        # Normalize and split input
-        branch_keywords = [kw.strip().lower() for kw in branch_query.split(",") if kw.strip()]
-
-        # Apply branch_map replacements if any
-        branch_keywords = [branch_map.get(kw, kw) for kw in branch_keywords]
-
-        # Check if user explicitly asked for architecture or planning
-        include_architecture = any("arch" in kw for kw in branch_keywords)
-        include_planning = any("plan" in kw for kw in branch_keywords)
-
-        # Exclude architecture/planning-related branches unless explicitly included
-        if not include_architecture:
-            matches = matches[~matches['Branch'].str.lower().str.contains("architecture|arch", regex=True)]
-        if not include_planning:
-            matches = matches[~matches['Branch'].str.lower().str.contains("planning|plan", regex=True)]
-
-        # Apply filter: match if any keyword appears in the branch name
-        pattern = '|'.join(branch_keywords)
-        matches = matches[matches['Branch'].str.lower().str.contains(pattern)]
-    else:
-        # No branch filter, exclude both architecture and planning
-        matches = matches[~matches['Branch'].str.lower().str.contains("architecture|arch|planning|plan", regex=True)]
-
-
-    # Drop duplicates based on key columns
-    matches_unique = matches.drop_duplicates(subset=['Institute', 'Branch', 'Category'])
-
-    if matches_unique.empty:
+if submit_button:
+    results_df = filter_cutoff_data(
+        cutoffs,
+        crl,
+        use_range,
+        rank_range_input,
+        category_form,
+        gender_form,
+        year_form,
+        round_selected_form,
+        selected_institute_form,
+        branch_query_form,
+        state_form
+    )
+    if results_df.empty:
         st.warning("⚠️ Sorry, no colleges found for your profile.")
     else:
-        st.success(f"🎯 Found {len(matches_unique)} possible options based on cutoffs in " + str(year))
-
-        # Select only relevant columns
-        display_data = matches_unique[['Closing Rank', 'Institute', 'Branch', 'Round']].sort_values(by='Closing Rank')
-
-        # Reset index and convert to records for clean display
-        display_data = display_data.reset_index(drop=True)
-
-        # Convert to a format that Streamlit doesn't try to add index to
-        st.dataframe(display_data.style.hide(axis='index'), use_container_width=True)
-
-
+        st.success(f"🎯 Found {len(results_df)} possible options based on cutoffs in " + str(year_form))
+        st.dataframe(results_df.style.hide(axis='index'), use_container_width=True)
 
 st.markdown("---")  # Horizontal line separator
 
-
-# Gemini assistant
-
-# Suggested example questions
-sample_questions = [
-    "What NITs can I get with 15000 rank for ECE?",
-    "Show me IITs accepting 8000 rank for Computer Science.",
-    "What are my options in Round 3 with rank 23000 for SC category?",
-    "Can I get Mechanical in NIT with 12000 rank?",
-    "What branches were available in IITs above 6000 CRL in year 2023?"
-]
-
-# UI section for hybrid input
+# --- Gemini Assistant ---
 st.subheader("🤖 Ask Admissions Copilot")
 
 st.markdown(
@@ -224,113 +237,115 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-selected_example = st.selectbox("💡 Choose a sample question:", [""] + sample_questions)
-custom_question = st.text_area("Or type your own question below:")
+sample_questions = [
+    "What NITs can I get with a rank of 10000 for Computer Science?",
+    "Show me the IITs I might get with a rank around 8000.",
+    "What are the options for rank 4000 for aerospace in the 2023 cutoffs?",
+    "Can I get Mechanical in NIT with 12000 rank?",
+    "What branches were available in NITs above 6000 CRL for Haryana domicile?",
+    "Can I get anything at rank 80000?",
+]
 
-# Final question used for processing
-final_question = custom_question.strip() if custom_question.strip() else selected_example
+def update_custom_question():
+    st.session_state["custom_question"] = st.session_state["selected_example"]
 
+selected_example = st.selectbox("💡 You can choose a sample question from this list:", [""] + sample_questions, key="selected_example", on_change=update_custom_question)
+custom_question = st.text_area("Or type your own question below. This is the question which I will try to answer", key="custom_question")
 
-def trigger_gemini():
-    st.session_state["last_question"] = final_question
-    st.session_state["run_query"] = True
+# The final question is always from the custom text area
+final_question = st.session_state.get("custom_question", "")
 
-st.button("Ask", on_click=trigger_gemini)
+def run_gemini_query():
+    if final_question:
+        st.session_state["last_question"] = final_question
+        st.session_state["run_query"] = True
+
+ask_button = st.button("Ask", on_click=run_gemini_query)
 
 if st.session_state.get("run_query", False) and st.session_state.get("last_question", "").strip():
     try:
         model = genai.GenerativeModel("gemini-2.0-flash")
-
         prompt = f"""
-        You're an Indian college admission counselor.
-        You are helping students get admission into engineering colleges via JoSAA.
+        You are an expert Indian college admission counselor, helping students with JoSAA admissions.
 
-        Understand:
-        - "IIT" = Indian Institute of Technology (e.g. IIT Bombay)
-        - "NIT" = National Institute of Technology (e.g. NIT Trichy)
-        - "IIIT" = Indian Institute of Information Technology (not same as IIT)
+        When asked a question about college admissions, you need to identify and extract specific information. If a piece of information is NOT explicitly mentioned in the question, you should use a sensible default value.
 
-        Based on this student question, extract the following fields:
-        - Closing Rank (numeric)
-        - Round (1-5)
-        - Category (OPEN, OBC, SC, etc.)
-        - Branch (text)
-        - Institute (text)
-        - Year (numeric)
+        Here's the information you need to extract:
+        - Closing Rank: Extract the numerical rank mentioned. If not mentioned, do not invent one.
+        - Round: Extract the round number (1 to 6) if mentioned. If not mentioned, the value should be NULL.
+        - Category: Extract the admission category (e.g., OPEN, OBC-NCL, SC, ST, EWS) if mentioned. If the category is NOT mentioned in the question, the DEFAULT value MUST be "OPEN".
+        - Branch: Extract the engineering branch (e.g., computer science, electronics and communication) if mentioned. If not mentioned, the value should be NULL.
+        - Institute Type: Identify the type of institute (e.g., IIT, NIT, IIIT) if mentioned. If a specific institute name is given, try to categorize it. If the type is not clear, the value should be NULL.
+        - Year: Extract the admission year if mentioned. If not mentioned, the DEFAULT value MUST be 2024.
+        - State: Extract the domicile state if mentioned. If not mentioned, the value should be NULL.
 
-        Respond ONLY with raw JSON (no markdown/code blocks).
+        Your response MUST be a raw JSON object containing these fields as keys. Do not include any explanations or markdown.
+
+        Example Question: What NITs can I get with 15000 rank for ECE in round 1?
+        Expected JSON Response:
+        {{
+          "Closing Rank": 15000,
+          "Round": 1,
+          "Category": "OPEN",
+          "Branch": "electronics and communication",
+          "Institute Type": "nit",
+          "Year": 2024,
+          "State": null
+        }}
+
+        Now, process the following question and respond ONLY with the raw JSON:
 
         Question: {st.session_state['last_question']}
         """
-
         response = model.generate_content(prompt)
         output = response.text
         clean_output = re.sub(r"```json|```", "", output).strip()
-
         extracted = json.loads(clean_output)
-        #st.success("✅ Parsed Filters:")
-        #st.json(extracted)
+        #st.json(extracted) # For debugging the extracted output
 
-        # Filter data
-        extracted = {k.lower(): v for k, v in extracted.items()}
-        matches = cutoffs.copy()
+        # Convert keys to lowercase for case-insensitive access
+        extracted_lower = {k.lower(): v for k, v in extracted.items()}
 
-        year = 2024;
+        # Prepare arguments for the filtering function
+        rank_gemini = extracted_lower.get("closing rank")
+        round_gemini = extracted_lower.get("round")
+        category_gemini = extracted_lower.get("category")
+        branch_gemini = extracted_lower.get("branch")
+        institute_type_gemini = extracted_lower.get("institute type")
+        year_gemini = extracted_lower.get("year") if extracted_lower.get("year") else 2024
+        state_gemini = extracted_lower.get("state") if extracted_lower.get("state") else "Select State"
 
-        if "closing rank" in extracted and isinstance(extracted["closing rank"], int):
-            matches = matches[matches["Closing Rank"] >= extracted["closing rank"]]
+##        st.write("--- Debugging Filter Parameters ---")
+##        st.write(f"Rank: {rank_gemini}")
+##        st.write(f"Round: {round_gemini}")
+##        st.write(f"Category: {category_gemini}")
+##        st.write(f"Branch: {branch_gemini}")
+##        st.write(f"Institute: {institute_type_gemini if institute_type_gemini else 'ALL'}")
+##        st.write(f"Year: {year_gemini}")
+##        st.write(f"State: {state_gemini}")
+##        st.write("--- End Debugging ---")
 
-        if "round" in extracted and isinstance(extracted["round"], int):
-            matches = matches[matches["Round"] == extracted["round"]]
-
-        if "year" in extracted and isinstance(extracted["year"], int):
-            year = extracted["year"]
-        matches = matches[matches["Year"] == year]
-
-        if "category" in extracted and isinstance(extracted["category"], str):
-            cat_filter = extracted["category"]
-            cat_filter = cat_filter.replace("General", "OPEN")
-            cat_filter = cat_filter.replace("GEN", "OPEN")
-            #st.text("Category Name:")
-            #st.text(cat_filter)
-            matches = matches[matches["Category"].str.upper() == extracted["category"].upper()]
-        else:
-            matches = matches[matches["Category"].str.upper() == "OPEN"]
-
-
-        if "branch" in extracted and isinstance(extracted["branch"], str):
-            branch_filter = extracted["branch"]
-            branch_filter_normalized = branch_filter.strip().lower()
-            # Replace if found in map
-            if branch_filter_normalized in branch_map:
-                branch_filter = branch_map[branch_filter_normalized]
+        if rank_gemini is not None:
+            results_gemini_df = filter_cutoff_data(
+                cutoffs,
+                rank_gemini,
+                False, # use_range is always False for direct query
+                0,     # rank_range is 0
+                category_gemini if category_gemini else "OPEN", # Default category
+                "Gender-Neutral", # Gender is not typically asked
+                year_gemini,
+                str(round_gemini) if round_gemini is not None else "ANY", # Handle potential None for round
+                institute_type_gemini if institute_type_gemini else "ALL", # Default for institute
+                branch_gemini if branch_gemini else "", # Default for branch
+                state_gemini # State has a default of "Select State" already
+            )
+            if not results_gemini_df.empty:
+                st.success(f"🤖 Gemini found {len(results_gemini_df)} matching options based on cutoffs in {year_gemini}")
+                st.dataframe(results_gemini_df.style.hide(axis='index'), use_container_width=True)
             else:
-                branch_filter = branch_filter_normalized
-            #st.text("Expanded Branch Name:")
-            #st.text(branch_filter)
-            matches = matches[matches["Branch"].str.contains(branch_filter, case=False, na=False)]
-
-        if "institute" in extracted and isinstance(extracted["institute"], str):
-            inst_filter = extracted["institute"]
-            inst_filter_normalized = inst_filter.strip().lower()
-            # Replace if found in map
-            if inst_filter_normalized in institute_map:
-                inst_filter = institute_map[inst_filter_normalized]
-            else:
-                inst_filter = inst_filter_normalized
-            #st.text("Expanded Institute Name:")
-            #st.text(inst_filter)
-            matches = matches[matches["Institute"].str.contains(inst_filter, case=False, na=False)]
-
-        matches_unique = matches.drop_duplicates(subset=['Institute', 'Branch', 'Category'])
-
-        if not matches_unique.empty:
-            st.success(f"🎓 Found {len(matches_unique)} matching options based on cutoffs in " + str(year))
-            display_data = matches_unique[['Closing Rank', 'Institute', 'Branch', 'Category', 'Round']].sort_values(by='Closing Rank')
-            display_data = display_data.reset_index(drop=True)
-            st.dataframe(display_data.style.hide(axis='index'), use_container_width=True)
+                st.warning("🤖 Gemini couldn't find any matching options based on the query.")
         else:
-            st.warning("No matches found. Try refining your question.")
+            st.warning("🤖 Gemini could not extract a valid rank from your query. Please ensure you have mentioned your rank.")
 
     except json.JSONDecodeError as e:
         st.error(f"❌ JSON Parse Error: {e}")
@@ -340,19 +355,15 @@ if st.session_state.get("run_query", False) and st.session_state.get("last_quest
     except Exception as e:
         st.error(f"❌ Error: {str(e)}")
 
-    # Reset trigger
+    # Reset trigger AFTER processing the query
     st.session_state["run_query"] = False
 
-
-st.markdown("---")  # Horizontal line separator
-
-st.markdown(
-    """
-    <p style="font-size:12px; color:gray; text-align:left;">
-    &copy; 2025 Ritesh Jain. This tool is an open-source initiative to help organize JoSAA 2023, 2024 cutoff data for easier exploration.  
-    All data is used as-is and may contain errors. Use this tool at your own risk. The author is not liable for any inaccuracies or decisions based on this data.
-    </p>
-    """,
-    unsafe_allow_html=True,
-)
-
+# Initialize run_query and last_question in session state if they don't exist
+if "run_query" not in st.session_state:
+    st.session_state["run_query"] = False
+if "last_question" not in st.session_state:
+    st.session_state["last_question"] = ""
+if "custom_question" not in st.session_state:
+    st.session_state["custom_question"] = ""
+if "selected_example" not in st.session_state:
+    st.session_state["selected_example"] = ""
