@@ -7,6 +7,7 @@ import re
 import streamlit.components.v1 as components
 #import streamlit_analytics
 
+
 # --- Configuration ---
 st.set_page_config(
     page_title="Engineering Admissions Copilot - JoSAA 2025",
@@ -14,8 +15,21 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- Google Analytics using streamlit-analytics ---
-#with streamlit_analytics.track():
+GA4_ID = "G-39DYHCZPD3"  # Replace with your actual ID
+
+components.html(
+    f"""
+    <script async src="https://www.googletagmanager.com/gtag/js?id={GA4_ID}"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){{dataLayer.push(arguments);}}
+      gtag('js', new Date());
+
+      gtag('config', '{GA4_ID}');
+    </script>
+    """,
+    height=0,
+)
    
 # --- Data Loading and Initialization ---
 @st.cache_data
@@ -57,46 +71,38 @@ institute_map = {
 }
 
 state_nit_map = {
-    "Karnataka": "National Institute of Technology Karnataka, Surathkal",
-    "Telangana": "National Institute of Technology, Warangal",
-    "Kerala": "National Institute of Technology Calicut",
-    "Jharkhand": "National Institute of Technology, Jamshedpur",
-    "Tamil Nadu": "National Institute of Technology, Tiruchirappalli",
-    "Uttar Pradesh": "Motilal Nehru National Institute of Technology Allahabad",
-    "West Bengal": "Indian Institute of Engineering Science and Technology, Shibpur",
-    "Odisha": "National Institute of Technology, Rourkela",
-    "West Bengal": "National Institute of Technology Durgapur",
-    "Rajasthan": "Malaviya National Institute of Technology Jaipur",
-    "Meghalaya": "National Institute of Technology Meghalaya",
-    "Maharashtra": "Visvesvaraya National Institute of Technology, Nagpur",
-    "Chhattisgarh": "National Institute of Technology Raipur",
-    "Andhra Pradesh": "National Institute of Technology, Andhra Pradesh",
-    "Haryana": "National Institute of Technology, Kurukshetra",
-    "Bihar": "National Institute of Technology Patna",
-    "Madhya Pradesh": "Maulana Azad National Institute of Technology Bhopal",
-    "Jammu and Kashmir": "National Institute of Technology, Srinagar",
-    "Himachal Pradesh": "National Institute of Technology Hamirpur",
-    "Chandigarh": "Punjab Engineering College, Chandigarh",
-    "Delhi": "National Institute of Technology Delhi",
-    "Gujarat": "Sardar Vallabhbhai National Institute of Technology, Surat",
-    "Punjab": "Dr. B R Ambedkar National Institute of Technology, Jalandhar",
-    "Assam": "National Institute of Technology, Silchar",
-    "Uttarakhand": "National Institute of Technology, Uttarakhand",
-    "Jharkhand": "Birla Institute of Technology, Mesra, Ranchi",
-    "Tripura": "National Institute of Technology Agartala",
-    "Puducherry": "National Institute of Technology Puducherry",
-    "Goa": "National Institute of Technology Goa",
-    "Jharkhand": "Birla Institute of Technology, Deoghar Off-Campus", # Assuming location
-    "Bihar": "Birla Institute of Technology, Patna Off-Campus", # Assuming location
-    "Assam": "Assam University, Silchar",
-    "Manipur": "National Institute of Technology, Manipur",
-    "Arunachal Pradesh": "National Institute of Technology Arunachal Pradesh",
-    "West Bengal": "Ghani Khan Choudhury Institute of Engineering and Technology, Malda, West Bengal",
-    "Nagaland": "National Institute of Technology Nagaland",
-    "Odisha": "Institute of Chemical Technology, Mumbai: Indian Oil Odisha Campus, Bhubaneswar",
-    "Sikkim": "National Institute of Technology Sikkim",
-    "Mizoram": "National Institute of Technology, Mizoram",
-    "Puducherry": "Puducherry Technological University, Puducherry",
+    "Karnataka": ["National Institute of Technology Karnataka, Surathkal"],
+    "Telangana": ["National Institute of Technology, Warangal"],
+    "Kerala": ["National Institute of Technology Calicut"],
+    "Jharkhand": ["National Institute of Technology, Jamshedpur", "Birla Institute of Technology, Mesra, Ranchi", "Birla Institute of Technology, Deoghar Off-Campus"],
+    "Tamil Nadu": ["National Institute of Technology, Tiruchirappalli"],
+    "Uttar Pradesh": ["Motilal Nehru National Institute of Technology Allahabad"],
+    "West Bengal": ["Indian Institute of Engineering Science and Technology, Shibpur", "National Institute of Technology Durgapur", "Ghani Khan Choudhury Institute of Engineering and Technology, Malda, West Bengal"],
+    "Odisha": ["National Institute of Technology, Rourkela", "Institute of Chemical Technology, Mumbai: Indian Oil Odisha Campus, Bhubaneswar"],
+    "Rajasthan": ["Malaviya National Institute of Technology Jaipur"],
+    "Meghalaya": ["National Institute of Technology Meghalaya"],
+    "Maharashtra": ["Visvesvaraya National Institute of Technology, Nagpur"],
+    "Chhattisgarh": ["National Institute of Technology Raipur"],
+    "Andhra Pradesh": ["National Institute of Technology, Andhra Pradesh"],
+    "Haryana": ["National Institute of Technology, Kurukshetra"],
+    "Bihar": ["National Institute of Technology Patna", "Birla Institute of Technology, Patna Off-Campus"],
+    "Madhya Pradesh": ["Maulana Azad National Institute of Technology Bhopal"],
+    "Jammu and Kashmir": ["National Institute of Technology, Srinagar"],
+    "Himachal Pradesh": ["National Institute of Technology Hamirpur"],
+    "Chandigarh": ["Punjab Engineering College, Chandigarh"],
+    "Delhi": ["National Institute of Technology Delhi"],
+    "Gujarat": ["Sardar Vallabhbhai National Institute of Technology, Surat"],
+    "Punjab": ["Dr. B R Ambedkar National Institute of Technology, Jalandhar"],
+    "Assam": ["National Institute of Technology, Silchar", "Assam University, Silchar"],
+    "Uttarakhand": ["National Institute of Technology, Uttarakhand"],
+    "Tripura": ["National Institute of Technology Agartala"],
+    "Puducherry": ["National Institute of Technology Puducherry", "Puducherry Technological University, Puducherry"],
+    "Goa": ["National Institute of Technology Goa"],
+    "Manipur": ["National Institute of Technology, Manipur"],
+    "Arunachal Pradesh": ["National Institute of Technology Arunachal Pradesh"],
+    "Nagaland": ["National Institute of Technology Nagaland"],
+    "Sikkim": ["National Institute of Technology Sikkim"],
+    "Mizoram": ["National Institute of Technology, Mizoram"],
 }
 
 # Create a sorted list of states for the dropdown
@@ -135,19 +141,21 @@ def filter_cutoff_data(df, rank, use_range=False, rank_range=0, category=None, g
         matches = matches[matches['Institute'].str.lower().str.contains(selected_institute.lower(), regex=False)]
 
     if state != "Select State":
-        home_college = state_nit_map.get(state)
-        if home_college:
-            def filter_by_state(row):
-                institute_lower = row['Institute'].lower()
-                if any(college.lower() in institute_lower for college in state_nit_map.values()):
-                    if home_college.lower() in institute_lower:
-                        return row['Quota'] == 'HS'
-                    else:
-                        return row['Quota'] == 'OS'
-                return True
-            matches = matches[matches.apply(filter_by_state, axis=1)]
-        else:
-            st.warning(f"⚠️ College mapping not found for the state: {state}")
+        home_colleges = state_nit_map.get(state, [])
+        #print(f"Debug: Home Colleges for {state}: {home_colleges}") # Print the list of home colleges
+
+        def filter_by_state(row):
+            institute_lower = row['Institute'].lower()
+            if institute_lower in [hc.lower() for hc in home_colleges]:
+                #print(f"Debug: Institute '{row['Institute']}' is a home college, checking for HS = {(row['Quota'] == 'HS')}")
+                return row['Quota'] == 'HS'
+            else:
+                #print(f"Debug: Institute '{row['Institute']}' is not a home state college for '{state}', not filtering by quota.")
+                return True # Do not filter if not a home state college
+
+        matches = matches[matches.apply(filter_by_state, axis=1)]
+    #else:
+    #    st.warning(f"⚠️ College mapping not found for the state: {state}")
 
     if branch_query.strip() != "":
         branch_keywords = [kw.strip().lower() for kw in branch_query.split(",") if kw.strip()]
