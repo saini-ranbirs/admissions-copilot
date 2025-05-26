@@ -270,7 +270,7 @@ st.subheader("🎓 Engineering Admissions Copilot for JEE 2025")
 st.markdown(
     """
     <p style="font-size:16px; color:gray; text-align:left;">
-    This tool is an open-source initiative to help organize JEE 2023, 2024 cutoff data for easier exploration.
+    This tool is an open-source initiative to help you prepare for JoSAA 2025 counselling using JEE 2023, 2024 cutoff data.
     All data is fetched from the official JoSAA website and used as-is. Use this tool at your own risk. The author is not liable for any inaccuracies or decisions based on this data.
     </p>
     """,
@@ -344,7 +344,7 @@ st.subheader("🤖 Ask Admissions Copilot")
 st.markdown(
     """
     <p style="font-size:16px; color:gray; text-align:left;">
-    This section is an attempt to provide the same information using GenAI by understanding an English query.
+    This section is an attempt to understand your filtering options using GenAI and provide you with a list of matching colleges.
     At the moment, the tool can understand simple queries with one branch, one college type and a rank.
     A few sample queries are given below. Feel free to modify them as per your need.
     </p>
@@ -441,19 +441,32 @@ if st.session_state.get("run_query", False) and st.session_state.get("last_quest
 ##        st.write("--- End Debugging ---")
 
         if rank_gemini is not None:
+            institute_list_gemini = []
+            if institute_type_gemini:
+                if institute_type_gemini.lower() == "iit":
+                    institute_list_gemini = ["All IITs"]
+                elif institute_type_gemini.lower() == "nit":
+                    institute_list_gemini = ["All NITs"]
+                else:
+                    # If a specific institute name was extracted, add it as a list
+                    institute_list_gemini = [institute_type_gemini]
+            else:
+                institute_list_gemini = ["All"] # Default if no institute type is mentioned
+
             results_gemini_df = filter_cutoff_data(
                 cutoffs,
                 rank_gemini,
                 False, # use_range is always False for direct query
-                0,     # rank_range is 0
+                0,
                 category_gemini if category_gemini else "OPEN", # Default category
                 "Gender-Neutral", # Gender is not typically asked
                 year_gemini,
                 round_gemini if round_gemini is not None else "ANY", # Handle potential None for round
-                institute_type_gemini if institute_type_gemini else "ALL", # Default for institute
+                institute_list_gemini, # Pass the list of institutes
                 branch_gemini if branch_gemini else "", # Default for branch
                 state_gemini # State has a default of "Select State" already
             )
+
             if not results_gemini_df.empty:
                 st.success(f"🤖 found {len(results_gemini_df)} matching options based on cutoffs in {year_gemini}")
                 st.dataframe(results_gemini_df.style.hide(axis='index'), use_container_width=True)
@@ -482,5 +495,18 @@ if "custom_question" not in st.session_state:
     st.session_state["custom_question"] = ""
 if "selected_example" not in st.session_state:
     st.session_state["selected_example"] = ""
+
+
+st.markdown("---")  # Horizontal line separator
+
+st.markdown(
+    """
+    <p style="font-size:12px; color:gray; text-align:left;">
+    &copy; 2025 Ritesh Jain. This tool is an open-source initiative to help you prepare for JoSAA 2025 counselling using JEE 2023, 2024 cutoff data.
+    All data is fetched from the official JoSAA website and used as-is. Use this tool at your own risk. The author is not liable for any inaccuracies or decisions based on this data.
+    </p>
+    """,
+    unsafe_allow_html=True,
+)
 
 #streamlit_analytics.stop_tracking()
