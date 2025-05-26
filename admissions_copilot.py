@@ -5,7 +5,7 @@ import os
 import json
 import re
 import streamlit.components.v1 as components
-
+#import streamlit_analytics
 
 # --- Configuration ---
 st.set_page_config(
@@ -25,23 +25,54 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-components.html(
-    f"""
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-8SFFPX2S46"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){{dataLayer.push(arguments);}}
-      gtag('js', new Date());
-
-      gtag('config', 'G-8SFFPX2S46');
-      gtag('event', 'page_view', {{
-        'page_title': document.title,
-        'page_location': window.location.href
-      }});
-    </script>
+st.markdown(
+    """
+    <style>
+    .stMultiSelect [data-baseweb="tag"] {
+        background-color: #ADD8E6 !important;
+        color: #262730 !important;
+        border: 1px solid #your_desired_border_color !important; /* Optional: Add a border */
+    }
+    </style>
     """,
-    height=0,
+    unsafe_allow_html=True,
 )
+
+
+
+#streamlit_analytics.start_tracking()
+
+
+
+st.markdown(
+    """
+        <!-- Global site tag (gtag.js) - Google Analytics -->
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-8SFFPX2S46"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-8SFFPX2S46');
+        </script>
+    """, unsafe_allow_html=True)
+
+##components.html(
+##    f"""
+##    <script async src="https://www.googletagmanager.com/gtag/js?id=G-8SFFPX2S46"></script>
+##    <script>
+##      window.dataLayer = window.dataLayer || [];
+##      function gtag(){{dataLayer.push(arguments);}}
+##      gtag('js', new Date());
+##
+##      gtag('config', 'G-8SFFPX2S46');
+##      gtag('event', 'page_view', {{
+##        'page_title': document.title,
+##        'page_location': window.location.href
+##      }});
+##    </script>
+##    """,
+##    height=0,
+##)
    
 # --- Data Loading and Initialization ---
 @st.cache_data
@@ -150,17 +181,48 @@ def filter_cutoff_data(df, rank, use_range=False, rank_range=0, category=None, g
     if round_selected != "ANY":
         matches = matches[matches['Round'] == round_selected]
 
-    selected_institute_normalized = selected_institute.strip().lower()
-    if selected_institute_normalized == "all except iits":
-        matches = matches[~matches['Institute'].str.lower().str.contains("indian institute of technology", regex=False)]
-    elif selected_institute_normalized == "all nits":
-        matches = matches[matches['Institute'].str.lower().str.contains("national institute of technology", regex=False)]
-    elif selected_institute_normalized != "all":
-        if selected_institute_normalized in institute_map:
-            selected_institute = institute_map[selected_institute_normalized]
-        else:
-            selected_institute = selected_institute_normalized
-        matches = matches[matches['Institute'].str.lower().str.contains(selected_institute.lower(), regex=False)]
+
+    selected_institutes = [inst.strip().lower() for inst in selected_institute]
+
+    if "all" in selected_institutes:
+        pass  # If "All" is selected, no institute filtering is needed
+    else:
+        institute_filter = pd.Series([False] * len(matches), index=matches.index)
+        for index, row in matches.iterrows():
+            institute_name_lower = row['Institute'].strip().lower()
+            match = False
+            for selected_inst in selected_institutes:
+                if selected_inst == "all iits" and "indian institute of technology" in institute_name_lower:
+                    match = True
+                    break
+                elif selected_inst == "all nits" and "national institute of technology" in institute_name_lower:
+                    match = True
+                    break
+                elif selected_inst == "all except iits" and "indian institute of technology" not in institute_name_lower:
+                    match = True
+                    break
+                elif selected_inst in institute_map and institute_map[selected_inst].lower() in institute_name_lower:
+                    match = True
+                    break
+                elif selected_inst == institute_name_lower:
+                    match = True
+                    break
+            if match:
+                institute_filter.at[index] = True
+        matches = matches[institute_filter]
+
+
+##    selected_institute_normalized = selected_institute.strip().lower()
+##    if selected_institute_normalized == "all except iits":
+##        matches = matches[~matches['Institute'].str.lower().str.contains("indian institute of technology", regex=False)]
+##    elif selected_institute_normalized == "all nits":
+##        matches = matches[matches['Institute'].str.lower().str.contains("national institute of technology", regex=False)]
+##    elif selected_institute_normalized != "all":
+##        if selected_institute_normalized in institute_map:
+##            selected_institute = institute_map[selected_institute_normalized]
+##        else:
+##            selected_institute = selected_institute_normalized
+##        matches = matches[matches['Institute'].str.lower().str.contains(selected_institute.lower(), regex=False)]
 
     if state != "Select State":
         home_colleges = state_nit_map.get(state, [])
@@ -230,10 +292,17 @@ with st.form("form"):
 
     if exam_type == "JEE Advanced":
         allowed_institutes_form = sorted([i for i in institutes if i.startswith("Indian Institute of Technology")])
-        selected_institute_form = st.selectbox("Do you want to filter by Institute?", ["All IITs", "All"] + allowed_institutes_form)
+        selected_institute_form = st.multiselect("For JEE Advanced, filter by IITs (select multiple if needed):", ["All IITs", "All"] + allowed_institutes_form, default=["All"])
     else:
         allowed_institutes_form = sorted([i for i in institutes if not i.startswith("Indian Institute of Technology")])
-        selected_institute_form = st.selectbox("Do you want to filter by Institute?", ["All except IITs", "All NITs", "All"] + allowed_institutes_form)
+        selected_institute_form = st.multiselect("For JEE Mains, filter by NITs and other colleges (select multiple if needed):", ["All except IITs", "All NITs", "All"] + allowed_institutes_form, default=["All"])
+
+##    if exam_type == "JEE Advanced":
+##        allowed_institutes_form = sorted([i for i in institutes if i.startswith("Indian Institute of Technology")])
+##        selected_institute_form = st.selectbox("Do you want to filter by Institute?", ["All IITs", "All"] + allowed_institutes_form)
+##    else:
+##        allowed_institutes_form = sorted([i for i in institutes if not i.startswith("Indian Institute of Technology")])
+##        selected_institute_form = st.selectbox("Do you want to filter by Institute?", ["All except IITs", "All NITs", "All"] + allowed_institutes_form)
 
     branch_query_form = st.text_input("Do you want to filter by Branch? (for example: cs, ece, electrical, civil)", "")
     submit_button = st.form_submit_button("Find Colleges")
@@ -413,3 +482,5 @@ if "custom_question" not in st.session_state:
     st.session_state["custom_question"] = ""
 if "selected_example" not in st.session_state:
     st.session_state["selected_example"] = ""
+
+#streamlit_analytics.stop_tracking()
