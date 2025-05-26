@@ -5,27 +5,39 @@ import os
 import json
 import re
 import streamlit.components.v1 as components
-#import streamlit_analytics
 
 
 # --- Configuration ---
 st.set_page_config(
     page_title="Engineering Admissions Copilot - JoSAA 2025",
     page_icon="🎓",
-    layout="wide"
+    layout="centered"
 )
 
-GA4_ID = "G-39DYHCZPD3"  # Replace with your actual ID
+st.markdown(
+    """
+    <style>
+        .block-container {
+            padding-top: 1rem !important;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 components.html(
     f"""
-    <script async src="https://www.googletagmanager.com/gtag/js?id={GA4_ID}"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-8SFFPX2S46"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){{dataLayer.push(arguments);}}
       gtag('js', new Date());
 
-      gtag('config', '{GA4_ID}');
+      gtag('config', 'G-8SFFPX2S46');
+      gtag('event', 'page_view', {{
+        'page_title': document.title,
+        'page_location': window.location.href
+      }});
     </script>
     """,
     height=0,
@@ -112,6 +124,16 @@ states = sorted(state_nit_map.keys())
 def filter_cutoff_data(df, rank, use_range=False, rank_range=0, category=None, gender=None, year=None, round_selected="ANY", selected_institute="All", branch_query="", state="Select State"):
     matches = df.copy()
 
+##    st.write("--- Debugging Filter Parameters in filter function ---")
+##    st.write(f"Rank: {rank}")
+##    st.write(f"Round: {round_selected}")
+##    st.write(f"Category: {category}")
+##    st.write(f"Branch: {branch_query}")
+##    st.write(f"Institute: {selected_institute}")
+##    st.write(f"Year: {year}")
+##    st.write(f"State: {state}")
+##    st.write("--- End Debugging ---")
+
     if use_range:
         lower_bound = rank - rank_range
         upper_bound = rank + rank_range
@@ -171,17 +193,23 @@ def filter_cutoff_data(df, rank, use_range=False, rank_range=0, category=None, g
     else:
         matches = matches[~matches['Branch'].str.lower().str.contains("architecture|arch|planning|plan", regex=True)]
 
-    matches_unique = matches.drop_duplicates(subset=['Institute', 'Branch', 'Category'])
-    return matches_unique[['Closing Rank', 'Institute', 'Branch', 'Round']].sort_values(by='Closing Rank').reset_index(drop=True)
+    # Sort the DataFrame by 'Closing Rank' in descending order
+    matches_sorted = matches.sort_values(by='Closing Rank', ascending=False)
+
+    # Drop duplicates based on 'Institute', 'Branch', and 'Category', keeping the first occurrence
+    # (which now has the highest Closing Rank due to the sorting)
+    matches_unique_highest_rank = matches_sorted.drop_duplicates(subset=['Institute', 'Branch', 'Category'], keep='first')
+
+    return matches_unique_highest_rank[['Closing Rank', 'Round', 'Institute', 'Branch']].sort_values(by='Closing Rank').reset_index(drop=True)
 
 # --- Main Streamlit UI ---
-st.subheader("🎓 Engineering Admissions Copilot - JoSAA 2025")
+st.subheader("🎓 Engineering Admissions Copilot for JEE 2025")
 
 st.markdown(
     """
     <p style="font-size:16px; color:gray; text-align:left;">
-    This tool is an open-source initiative to help organize JoSAA 2023, 2024 cutoff data for easier exploration.
-    All data is used as-is and may contain errors. Use this tool at your own risk. The author is not liable for any inaccuracies or decisions based on this data.
+    This tool is an open-source initiative to help organize JEE 2023, 2024 cutoff data for easier exploration.
+    All data is fetched from the official JoSAA website and used as-is. Use this tool at your own risk. The author is not liable for any inaccuracies or decisions based on this data.
     </p>
     """,
     unsafe_allow_html=True,
@@ -190,24 +218,24 @@ st.markdown(
 # --- Structured Input Form ---
 exam_type = st.radio("Which exam rank are you using?", ["JEE Mains", "JEE Advanced"])
 crl = st.number_input("Enter your rank from " + exam_type, min_value=1, value=1000)
-use_range = st.checkbox("Search within ± range?")
+use_range = st.checkbox("Search within ± range of the above rank?")
 rank_range_input = st.number_input("Enter range value", min_value=1, max_value=1000, value=200) if use_range else 0
 
 with st.form("form"):
-    category_form = st.selectbox("Category", sorted(cutoffs['Category'].dropna().unique()), index=4)
-    gender_form = st.selectbox("Gender", genders, index=1)
-    state_form = st.selectbox("Domicile State (for NITs and other colleges with Home State quota)", ["Select State"] + states)
-    year_form = st.selectbox("Year", years, index=len(years)-1)
-    round_selected_form = st.selectbox("Select JoSAA Round", ["ANY"] + rounds, index=1)
+    category_form = st.selectbox("Select your Category for JEE", sorted(cutoffs['Category'].dropna().unique()), index=4)
+    gender_form = st.selectbox("Select your Gender", genders, index=1)
+    state_form = st.selectbox("Select the State where you gave your XII boards (for NITs and other colleges with Home State quota)", ["Select State"] + states)
+    year_form = st.selectbox("Select the Year from where to use the cutoff data", years, index=len(years)-1)
+    round_selected_form = st.selectbox("Select a particular JoSAA counselling Round", ["ANY"] + rounds, index=0)
 
     if exam_type == "JEE Advanced":
         allowed_institutes_form = sorted([i for i in institutes if i.startswith("Indian Institute of Technology")])
-        selected_institute_form = st.selectbox("Filter by Institute", ["All IITs", "All"] + allowed_institutes_form)
+        selected_institute_form = st.selectbox("Do you want to filter by Institute?", ["All IITs", "All"] + allowed_institutes_form)
     else:
         allowed_institutes_form = sorted([i for i in institutes if not i.startswith("Indian Institute of Technology")])
-        selected_institute_form = st.selectbox("Filter by Institute", ["All except IITs", "All NITs", "All"] + allowed_institutes_form)
+        selected_institute_form = st.selectbox("Do you want to filter by Institute?", ["All except IITs", "All NITs", "All"] + allowed_institutes_form)
 
-    branch_query_form = st.text_input("Filter by Branch (comma-separated) (for example: cs, ece, electrical, civil)", "")
+    branch_query_form = st.text_input("Do you want to filter by Branch? (for example: cs, ece, electrical, civil)", "")
     submit_button = st.form_submit_button("Find Colleges")
 
 if submit_button:
@@ -230,7 +258,16 @@ if submit_button:
         st.success(f"🎯 Found {len(results_df)} possible options based on cutoffs in " + str(year_form))
         st.dataframe(results_df.style.hide(axis='index'), use_container_width=True)
 
-st.markdown("---")  # Horizontal line separator
+st.divider()
+st.markdown(
+    """
+    <div style="text-align: center;">
+        ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨ ✨
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+st.divider()
 
 # --- Gemini Assistant ---
 st.subheader("🤖 Ask Admissions Copilot")
@@ -239,7 +276,8 @@ st.markdown(
     """
     <p style="font-size:16px; color:gray; text-align:left;">
     This section is an attempt to provide the same information using GenAI by understanding an English query.
-    The system is able to understand simple queries with one branch, one college type and a rank but may fail at complex ones. Give it a try!
+    At the moment, the tool can understand simple queries with one branch, one college type and a rank.
+    A few sample queries are given below. Feel free to modify them as per your need.
     </p>
     """,
     unsafe_allow_html=True,
@@ -258,7 +296,7 @@ def update_custom_question():
     st.session_state["custom_question"] = st.session_state["selected_example"]
 
 selected_example = st.selectbox("💡 You can choose a sample question from this list:", [""] + sample_questions, key="selected_example", on_change=update_custom_question)
-custom_question = st.text_area("Or type your own question below. This is the question which I will try to answer", key="custom_question")
+custom_question = st.text_area("💡 Or type your own question below. You can also modify a sample question here", key="custom_question")
 
 # The final question is always from the custom text area
 final_question = st.session_state.get("custom_question", "")
@@ -309,7 +347,7 @@ if st.session_state.get("run_query", False) and st.session_state.get("last_quest
         output = response.text
         clean_output = re.sub(r"```json|```", "", output).strip()
         extracted = json.loads(clean_output)
-        #st.json(extracted) # For debugging the extracted output
+##        st.json(extracted) # For debugging the extracted output
 
         # Convert keys to lowercase for case-insensitive access
         extracted_lower = {k.lower(): v for k, v in extracted.items()}
@@ -342,18 +380,18 @@ if st.session_state.get("run_query", False) and st.session_state.get("last_quest
                 category_gemini if category_gemini else "OPEN", # Default category
                 "Gender-Neutral", # Gender is not typically asked
                 year_gemini,
-                str(round_gemini) if round_gemini is not None else "ANY", # Handle potential None for round
+                round_gemini if round_gemini is not None else "ANY", # Handle potential None for round
                 institute_type_gemini if institute_type_gemini else "ALL", # Default for institute
                 branch_gemini if branch_gemini else "", # Default for branch
                 state_gemini # State has a default of "Select State" already
             )
             if not results_gemini_df.empty:
-                st.success(f"🤖 Gemini found {len(results_gemini_df)} matching options based on cutoffs in {year_gemini}")
+                st.success(f"🤖 found {len(results_gemini_df)} matching options based on cutoffs in {year_gemini}")
                 st.dataframe(results_gemini_df.style.hide(axis='index'), use_container_width=True)
             else:
-                st.warning("🤖 Gemini couldn't find any matching options based on the query.")
+                st.warning("🤖 couldn't find any matching options based on the query.")
         else:
-            st.warning("🤖 Gemini could not extract a valid rank from your query. Please ensure you have mentioned your rank.")
+            st.warning("🤖 could not extract a valid rank from your query. Please ensure you have mentioned your rank.")
 
     except json.JSONDecodeError as e:
         st.error(f"❌ JSON Parse Error: {e}")
