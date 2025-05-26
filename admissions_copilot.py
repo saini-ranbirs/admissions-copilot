@@ -292,10 +292,10 @@ with st.form("form"):
 
     if exam_type == "JEE Advanced":
         allowed_institutes_form = sorted([i for i in institutes if i.startswith("Indian Institute of Technology")])
-        selected_institute_form = st.multiselect("For JEE Advanced, filter by IITs (select multiple if needed):", ["All IITs", "All"] + allowed_institutes_form, default=["All"])
+        selected_institute_form = st.multiselect("For JEE Advanced, filter by IITs (select multiple if needed):", ["All IITs", "All"] + allowed_institutes_form, default=["All IITs"])
     else:
         allowed_institutes_form = sorted([i for i in institutes if not i.startswith("Indian Institute of Technology")])
-        selected_institute_form = st.multiselect("For JEE Mains, filter by NITs and other colleges (select multiple if needed):", ["All except IITs", "All NITs", "All"] + allowed_institutes_form, default=["All"])
+        selected_institute_form = st.multiselect("For JEE Mains, filter by NITs and other colleges (select multiple if needed):", ["All except IITs", "All NITs", "All"] + allowed_institutes_form, default=["All except IITs"])
 
 ##    if exam_type == "JEE Advanced":
 ##        allowed_institutes_form = sorted([i for i in institutes if i.startswith("Indian Institute of Technology")])
