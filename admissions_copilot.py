@@ -262,7 +262,7 @@ def filter_cutoff_data(df, rank, use_range=False, rank_range=0, category=None, g
     # (which now has the highest Closing Rank due to the sorting)
     matches_unique_highest_rank = matches_sorted.drop_duplicates(subset=['Institute', 'Branch', 'Category'], keep='first')
 
-    return matches_unique_highest_rank[['Closing Rank', 'Round', 'Institute', 'Branch']].sort_values(by='Closing Rank').reset_index(drop=True)
+    return matches_unique_highest_rank[['Closing Rank', 'Round', 'NIRF', 'Institute', 'Branch']].sort_values(by='Closing Rank').reset_index(drop=True)
 
 # --- Main Streamlit UI ---
 st.subheader("🎓 Engineering Admissions Copilot for JEE 2025")
