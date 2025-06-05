@@ -278,7 +278,7 @@ st.markdown(
 )
 
 # --- Structured Input Form ---
-exam_type = st.radio("Which exam rank are you using?", ["JEE Mains", "JEE Advanced"])
+exam_type = st.radio("Which exam rank are you using?", ["JEE Main", "JEE Advanced"])
 crl = st.number_input("Enter your rank from " + exam_type, min_value=1, value=1000)
 use_range = st.checkbox("Search within ± range of the above rank?")
 rank_range_input = st.number_input("Enter range value", min_value=1, max_value=1000, value=200) if use_range else 0
@@ -295,7 +295,7 @@ with st.form("form"):
         selected_institute_form = st.multiselect("For JEE Advanced, filter by IITs (select multiple if needed):", ["All IITs", "All"] + allowed_institutes_form, default=["All IITs"])
     else:
         allowed_institutes_form = sorted([i for i in institutes if not i.startswith("Indian Institute of Technology")])
-        selected_institute_form = st.multiselect("For JEE Mains, filter by NITs and other colleges (select multiple if needed):", ["All except IITs", "All NITs", "All"] + allowed_institutes_form, default=["All except IITs"])
+        selected_institute_form = st.multiselect("For JEE Main, filter by NITs and other colleges (select multiple if needed):", ["All except IITs", "All NITs", "All"] + allowed_institutes_form, default=["All except IITs"])
 
 ##    if exam_type == "JEE Advanced":
 ##        allowed_institutes_form = sorted([i for i in institutes if i.startswith("Indian Institute of Technology")])
@@ -392,7 +392,7 @@ if st.session_state.get("run_query", False) and st.session_state.get("last_quest
         - Branch: Extract the engineering branch (e.g., computer science, electronics and communication) if mentioned. If not mentioned, the value should be NULL.
         - Institute Type: Identify the type of institute (e.g., IIT, NIT, IIIT) if mentioned. If a specific institute name is given, try to categorize it. If the type is not clear, the value should be NULL.
         - Year: Extract the admission year if mentioned. If not mentioned, the DEFAULT value MUST be 2024.
-        - State: Extract the domicile state if mentioned. If not mentioned, the value should be NULL.
+        - State: Extract the home state if mentioned. If not mentioned, the value should be NULL.
 
         Your response MUST be a raw JSON object containing these fields as keys. Do not include any explanations or markdown.
 
